@@ -1,0 +1,21 @@
+[project]
+name = "tech-challenge-4-grupo-29"
+version = "0.1.0"
+description = "Project for the tech challenge 4 for pos-fiap-6IADT"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "gradio>=6.5.1",
+    "numpy>=2.4.2",
+    "opencv-python>=4.13.0.92",
+    "plotly>=6.5.2",
+]
+dev = [
+    "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
+    "taskipy>=1.14.1",
+]
+[tool.taskipy.tasks]
+start="uv run main.py"
+test="pytest"
+test-coverage="pytest --cov=src --cov-report=term-missing tests/"
