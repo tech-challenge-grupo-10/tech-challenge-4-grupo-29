@@ -25,7 +25,7 @@ warnings.filterwarnings("ignore")
 
 print("Carregando modelos de IA na memória. Isso pode levar alguns minutos na primeira execução...")
 audio_analyzer = AudioAnalyzer()
-#text_analyzer = TextAnalyzer()
+text_analyzer = TextAnalyzer()
 sensor_analyzer = SensorAnalyzer()
 print("Modelos carregados com sucesso!")
 
@@ -42,6 +42,8 @@ def process_stream(pdf_files, audio_files, sensor_files):
     if pdf_files:
         for p in pdf_files:
             pdf_report += f"- Arquivo lido: {os.path.basename(p)}\n"
+            res = text_analyzer.analyze(p)
+            pdf_report += f"- Texto extraído: {res['text']}\n"
         pdf_report += "✅ Texto extraído e anexado ao prontuário.\n\n"
     else:
         pdf_report += "Nenhum PDF recebido.\n\n"
