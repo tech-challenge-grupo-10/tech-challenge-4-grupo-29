@@ -25,6 +25,9 @@ dev = [
     "taskipy>=1.14.1",
 ]
 [tool.taskipy.tasks]
-start="uv run main.py"
+start="PYTHONPATH=. uv run python src/main.py"
 test="pytest"
 test-coverage="pytest --cov=src --cov-report=term-missing tests/"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
