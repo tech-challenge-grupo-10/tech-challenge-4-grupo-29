@@ -43,10 +43,12 @@ def process_stream(pdf_files, audio_files, sensor_files):
         for p in pdf_files:
             pdf_report += f"- Arquivo lido: {os.path.basename(p)}\n"
             res = text_analyzer.analyze(p)
-            pdf_report += f"- Texto extraído: {res['text']}\n"
+            pdf_report += f"- Texto extraído: {res["text"]}\n"
         pdf_report += "✅ Texto extraído e anexado ao prontuário.\n\n"
     else:
         pdf_report += "Nenhum PDF recebido.\n\n"
+    
+    pdf_report = text_analyzer.compose_report(text=pdf_report)
         
     yield pdf_report, None, "Aguardando áudio...", "Aguardando sensores...", None, None
 

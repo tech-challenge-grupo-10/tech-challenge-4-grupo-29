@@ -5,6 +5,7 @@ description = "Project for the tech challenge 4 for pos-fiap-6IADT"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "azure-ai-documentintelligence>=1.0.2",
     "deepface>=0.0.99",
     "google-genai>=1.66.0",
     "gradio>=6.5.1",
