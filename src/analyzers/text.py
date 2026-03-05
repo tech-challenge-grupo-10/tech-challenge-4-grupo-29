@@ -1,17 +1,20 @@
+
+
 class TextAnalyzer:
     """Classe responsável por transcrever o áudio e aplicar NLP para risco psicológico."""
     
     def __init__(self):
+        pass
         # Whisper: modelo 'base' ou 'tiny' para rodar bem em CPU
-        self.client = 
+        # self.client = 
         # Analisador de sentimento multilingue para marcadores de agressividade/depressão (negatividade)
-        self.sentiment_analyzer = pipeline("sentiment-analysis", model="nlptown/bert-base-multilingual-uncased-sentiment", device=-1)
+        #self.sentiment_analyzer = pipeline("sentiment-analysis", model="nlptown/bert-base-multilingual-uncased-sentiment", device=-1)
 
     def analyze(self, pdf_path):
         """Transcreve e analisa o sentimento do texto."""
         try:
             # 1. Transcrição
-            transcription = self.transcriber.transcribe(audio_path, fp16=False) # fp16=False evita warnings na CPU
+            transcription = self.transcriber.transcribe(pdf_path, fp16=False) # fp16=False evita warnings na CPU
             text = transcription['text'].strip()
             
             if not text:
