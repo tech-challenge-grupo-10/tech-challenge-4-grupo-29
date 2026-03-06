@@ -65,57 +65,33 @@ def process_stream(pdf_files, audio_files, sensor_files):
             pdf_report += f"- Texto extraído: {res["text"]}\n"
         pdf_report += "✅ Texto extraído e anexado ao prontuário.\n\n"
         logging.info("Documentos processados com sucesso.")
+        pdf_report = text_analyzer.compose_report(text=pdf_report)
     else:
         logging.info("Nenhum documento PDF recebido.")
         pdf_report += "Nenhum PDF recebido.\n\n"
-    
-    pdf_report = text_analyzer.compose_report(text=pdf_report)
         
-    yield pdf_report, None, "Aguardando áudio...", "Aguardando sensores...", None, None
+    yield pdf_report, "Aguardando áudio...", "Aguardando sensores...", None, None
 
     # --- Passo 2: Processar Áudios ---
     audio_report = f"🎤 Recebido(s) {len(audio_files) if audio_files else 0} arquivo(s) de áudio.\n"
-    audio_plot = plot_radar_chart({"Neutro": 100}, "Emoções Vocais (Aguardando)")
     
     if audio_files:
-        combined_emotions = {}
-        processed_count = 0
-        
         for af in audio_files:
             logging.info("Processando áudio: %s", os.path.basename(af))
             audio_report += f"- Analisando: {os.path.basename(af)}...\n"
-            yield pdf_report, audio_plot, audio_report, "Aguardando sensores...", None, None
-            
-            # Aqui analisaríamos cada áudio, por ora mockamos os resultados para múltiplos arquivos
-            # e atualizamos acumulativamente.
-            res = audio_analyzer.analyze(af)
-            
-            if "emotions" in res and res["emotions"]:
-                logging.info("Emoções detectadas em '%s': %s", os.path.basename(af),
-                             {k: f"{v:.2f}" for k, v in res["emotions"].items()})
-                for emotion, score in res["emotions"].items():
-                    combined_emotions[emotion] = combined_emotions.get(emotion, 0) + score
-                processed_count += 1
-                
-        if processed_count > 0:
-            # Media das emocoes
-            avg_emotions = {k: v / processed_count for k, v in combined_emotions.items()}
-            audio_plot = plot_radar_chart(avg_emotions, f"Emoções Vocais Média ({processed_count} áudios)")
-            audio_report += "✅ Análise vocal completa.\n\n"
-            logging.info("Análise de áudio concluída — %d arquivo(s) processado(s).", processed_count)
-        else:
-            logging.warning("Não foi possível extrair emoções de nenhum dos áudios recebidos.")
-            audio_report += "⚠️ Não foi possível processar as emoções nos áudios.\n"
-            audio_plot = plot_radar_chart({"Inconclusivo": 100}, "Emoções Vocais (Falha)")
+            yield pdf_report, audio_report, "Aguardando sensores...", None, None
+            emotions = audio_analyzer.analyze_emotions(af)
+            transcript=audio_analyzer.transcript(af)
+            audio_report = audio_analyzer.compose_report(emotions=emotions, transcript=transcript)
     else:
         audio_report += "Nenhum áudio recebido.\n\n"
-        
-    yield pdf_report, audio_plot, audio_report, "Iniciando processamento de sensores...", None, None
+
+    yield pdf_report, audio_report, "Iniciando processamento de sensores...", None, None
 
     # --- Passo 3: Processar Sensores (Streaming contínuo) ---
     if not sensor_files:
         logging.info("Nenhum arquivo de sensor recebido.")
-        yield pdf_report, audio_plot, audio_report, "Nenhum arquivo de sensor recebido.", plot_gauge_chart(0, "Pressão Sistólica", 200, []), plot_gauge_chart(0, "SpO2 (%)", 100, [])
+        yield pdf_report, audio_report, "Nenhum arquivo de sensor recebido.", plot_gauge_chart(0, "Pressão Sistólica", 200, []), plot_gauge_chart(0, "SpO2 (%)", 100, [])
         return
 
     # Juntar os dados de sensor caso haja mais de um e simular streaming
@@ -181,8 +157,8 @@ def process_stream(pdf_files, audio_files, sensor_files):
                 alert = True
 
             # Atualiza os componentes da UI e pausa para simular streaming
-            yield pdf_report, audio_plot, audio_report, sensor_report, sys_gauge, spo2_gauge
-            time.sleep(1.0) # Simula 1 segundo por leitura
+            yield pdf_report, audio_report, sensor_report, sys_gauge, spo2_gauge
+            time.sleep(0.01) # Simula 1 segundo por leitura
 
     # --- Notificação final ---
     if alert:
@@ -195,7 +171,7 @@ def process_stream(pdf_files, audio_files, sensor_files):
         logging.info("Análise concluída sem alertas de alto risco.")
 
     # Final do streaming
-    yield pdf_report, audio_plot, audio_report, "✅ Transmissão de sensores concluída.\n" + sensor_report, sys_gauge, spo2_gauge
+    yield pdf_report, audio_report, "✅ Transmissão de sensores concluída.\n" + sensor_report, sys_gauge, spo2_gauge
 
 # ==========================================
 # INTERFACE DE USUÁRIO (GRADIO)
@@ -256,9 +232,8 @@ def create_app():
                 gr.Markdown("### 📊 Dashboard e Stream de Dados")
                 
                 with gr.Tab("📄 Documentos e 🎤 Áudios"):
-                    pdf_output_txt = gr.Markdown(label="Status dos Documentos", elem_id="pdf_output_txt")
-                    audio_output_txt = gr.Textbox(label="Status e NLP dos Áudios", interactive=False)
-                    audio_output_plot = gr.Plot(label="Expressão Vocal (Último/Média)")
+                    pdf_output_txt = gr.Textbox(label="Análise dos documentos", interactive=False)
+                    audio_output_txt = gr.Textbox(label="Análise do Áudio", interactive=False)
                 
                 with gr.Tab("❤️ Sensores em Tempo Real"):
                     sensor_report_txt = gr.Markdown("### Aguardando início do stream...")
@@ -269,7 +244,7 @@ def create_app():
         analyze_stream_btn.click(
             fn=process_stream,
             inputs=[pdf_input, audio_input, sensor_input],
-            outputs=[pdf_output_txt, audio_output_plot, audio_output_txt, sensor_report_txt, sys_plot, spo2_plot]
+            outputs=[pdf_output_txt, audio_output_txt, sensor_report_txt, sys_plot, spo2_plot]
         )
         
     return app
