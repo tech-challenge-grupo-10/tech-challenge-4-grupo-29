@@ -2,46 +2,77 @@ import os
 import numpy as np
 import librosa
 from transformers import pipeline
+from openai import OpenAI
+from dotenv import load_dotenv
 
 class AudioAnalyzer:
     """Classe responsável por extrair áudio e analisar sentimentos/características sonoras."""
     
     def __init__(self):
-        # Usando um modelo leve de classificação de áudio (pode exigir internet na 1ª execução)
         try:
-            self.audio_classifier = pipeline("audio-classification", model="superb/wav2vec2-base-superb-er", device=-1) # device=-1 força CPU
+            # Usando um modelo leve de classificação de áudio
+            self.audio_classifier = pipeline("audio-classification", model="Dpngtm/wav2vec2-emotion-recognition", device=-1)
+            # Configura o pipeline de transcrição
+            self.transcriber = pipeline("automatic-speech-recognition", model="openai/whisper-tiny", device=-1)
+
+            self.client = OpenAI()
+
         except Exception as e:
             print(f"Aviso: Não foi possível carregar o modelo de áudio HF. Usaremos fallback. Erro: {e}")
             self.audio_classifier = None
 
-    def extract_audio(self, video_path, output_audio_path="temp_audio.wav"):
-        """Extrai o áudio de um arquivo de vídeo usando moviepy."""
-        try:
-            video = VideoFileClip(video_path)
-            if video.audio is None:
-                raise ValueError("O vídeo não contém faixa de áudio.")
-            video.audio.write_audiofile(output_audio_path, logger=None)
-            video.close()
-            return output_audio_path
-        except Exception as e:
-            raise RuntimeError(f"Erro na extração de áudio: {str(e)}")
-
-    def analyze(self, audio_path):
-        """Analisa o áudio extraído (emoção e features acústicas)."""
-        results = {"emotions": None, "mfcc_mean": None}
+    def analyze_emotions(self, audio_path):
+        """Analisa o áudio extraído (emoção e transcrito)."""
+        # Carrega o áudio e garante a taxa de amostragem de 16kHz exigida pelo Wav2Vec2
+        speech, sr = librosa.load(audio_path, sr=16000)
+        duration = librosa.get_duration(y=speech, sr=sr)
         
-        try:
-            # 1. Classificação de Emoção via HuggingFace
-            if self.audio_classifier:
-                predictions = self.audio_classifier(audio_path)
-                # Formatar saída: {'sad': 0.8, 'angry': 0.1, ...}
-                results["emotions"] = {pred['label']: pred['score'] for pred in predictions}
+        results = []
+        
+        # Percorre o áudio em blocos de window_size_sec
+        for start_time in range(0, int(duration), int(10)):
+            end_time = min(start_time + 10, duration)
             
-            # 2. Extração de Features Acústicas com Librosa (MFCC para estresse vocal)
-            y, sr = librosa.load(audio_path, sr=16000)
-            mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
-            results["mfcc_mean"] = np.mean(mfccs, axis=1).tolist()
+            # Extrai o segmento do áudio
+            start_sample = int(start_time * sr)
+            end_sample = int(end_time * sr)
+            audio_segment = speech[start_sample:end_sample]
             
-            return results
-        except Exception as e:
-            return {"Erro": f"Falha na análise de áudio: {str(e)}"}
+            # Classifica a emoção do segmento
+            prediction = self.audio_classifier(audio_segment)
+            top_emotion = prediction[0]
+            
+            results.append({
+                "start": start_time,
+                "end": end_time,
+                "emotion": top_emotion['label'],
+                "score": f"{top_emotion['score']:.2%}"
+            })
+        
+        return results
+    
+    def transcript(self, audio_path):
+        # Executa a transcrição com marcações de tempo
+        return self.transcriber(audio_path, return_timestamps=True)
+
+    def compose_report(self, emotions, transcript):
+        prompt = f"""
+            Analise o conteúdo destas extrações a partir do audio de uma conversa entre paciente e terapeuta:
+            
+            Esta aqui são as emoções extraídas do conteúdo:
+            ${emotions}
+
+            Esta aqui é o transcrito:
+            ${transcript}
+
+            Preciso que monte uma análise e correlacione as emoções da paciente com o contéudo do transcrito observando a situação da paciente e descrevendo como está o seu perfil psicológico
+        """
+        
+        response = self.client.chat.completions.create(
+            model="gpt-4.1",
+            messages=[
+                {"role": "system", "content": "Você é um médico psiquiatra com mais de 20 anos de experiência. Analise o texto abaixo e me diga se há indícios de depressão, ansiedade ou qualquer outro transtorno mental. Seja objetivo e direto."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        return response.choices[0].message.content
