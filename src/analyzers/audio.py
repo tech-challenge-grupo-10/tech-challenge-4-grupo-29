@@ -11,9 +11,9 @@ class AudioAnalyzer:
     def __init__(self):
         try:
             # Usando um modelo leve de classificação de áudio
-            self.audio_classifier = pipeline("audio-classification", model="Dpngtm/wav2vec2-emotion-recognition", device=-1)
+            self.audio_classifier = pipeline("audio-classification", model="Dpngtm/wav2vec2-emotion-recognition")
             # Configura o pipeline de transcrição
-            self.transcriber = pipeline("automatic-speech-recognition", model="openai/whisper-tiny", device=-1)
+            self.transcriber = pipeline("automatic-speech-recognition", model="openai/whisper-tiny")
 
             self.client = OpenAI()
 

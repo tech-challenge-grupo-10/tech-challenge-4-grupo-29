@@ -128,7 +128,7 @@ def process_stream(pdf_files, audio_files, sensor_files):
             
             # Atualiza os componentes da UI e pausa para simular streaming
             yield pdf_report, audio_report, sensor_report, sys_gauge, spo2_gauge
-            time.sleep(1.0) # Simula 1 segundo por leitura
+            time.sleep(0.01) # Simula 1 segundo por leitura
 
     # Final do streaming
     yield pdf_report, audio_report, "✅ Transmissão de sensores concluída.\n" + sensor_report, sys_gauge, spo2_gauge
